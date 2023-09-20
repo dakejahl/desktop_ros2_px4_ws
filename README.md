@@ -31,8 +31,8 @@ Download packages:
 ```
 git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
 git clone https://github.com/PX4/px4_msgs.git
-git clone git@github.com:gazebosim/ros_gz.git -b humble
-git clone git@github.com:BrettRD/ros-gst-bridge.git -b ros2
+git clone https://github.com/gazebosim/ros_gz.git -b humble
+git clone https://github.com/BrettRD/ros-gst-bridge.git -b ros2
 ```
 Install package dependencies:
 ```
@@ -43,10 +43,11 @@ sudo apt-get install -y libgflags-dev
 ```
 Build the packages:
 ```
-export GZ_VERSION=edifice
+export GZ_VERSION=garden
 colcon build
 ```
 When attempting to use the newly built packages, you must always first source this file:
 ```
 source install/setup.bash
 ```
+## Simulating an X500 with an OAK-D Lite depth camera
