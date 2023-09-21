@@ -1,5 +1,6 @@
 # Simulating PX4 and ROS 2 on Desktop
-Follow these steps to setup your desktop environment for simulating PX4 and ROS 2 with Gazebo.
+Follow these steps to setup your desktop environment for simulating PX4 and ROS 2 with Gazebo. Instructions below show you how to
+setup a video stream from a simulation
 
 ## Setup PX4
 Follow the PX4 docs to configure your environment for simulation. <br>
@@ -25,7 +26,6 @@ pip install --user -U empy pyros-genmsg setuptools
 ## Setup ROS 2 workspace
 ```
 mkdir -p ~/desktop_ros2_px4_ws/src && cd ~/desktop_ros2_px4_ws/src
-
 ```
 Download packages:
 ```
@@ -51,3 +51,50 @@ When attempting to use the newly built packages, you must always first source th
 source install/setup.bash
 ```
 ## Simulating an X500 with an OAK-D Lite depth camera
+Build and start the simulation:
+```
+make px4_sitl
+PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL=x500 PX4_GZ_MODEL_POSE="0,0,0,0,0,0" PX4_GZ_WORLD=default ./build/px4_sitl_default/bin/px4
+```
+Add an alias to make it as simple as `px4_sim`
+```
+mkdir -p ~/.bash_aliases
+echo "alias px4_sim=\"PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL=x500_depth PX4_GZ_MODEL_POSE=\"0,0,0,0,0,0\" PX4_GZ_WORLD=default ./build/px4_sitl_default/bin/px4\"" >> ~/.bash_aliases
+```
+You can see topics in gazebo, notice the camera and odometry topics
+```
+gz topic --list
+```
+> /camera <br>
+> /camera_info <br>
+> /clock <br>
+> /depth_camera <br>
+> /depth_camera/points <br>
+> /gazebo/resource_paths <br>
+> /gui/camera/pose <br>
+> /model/x500_depth_0/odometry <br>
+> /model/x500_depth_0/odometry_with_covariance <br>
+> /model/x500_depth_0/pose <br>
+
+`/model/x500_depth_0/odometry` comes from the OdometryPublisher in the **models/x500_depth/model.sdf**. This is already
+fed to PX4 via the GZBridge, alternatively we should be able to supply it from a ros2 node as well.
+
+
+### Video streaming
+We can get a video stream from the simulation by bridging the gazebo `/camera` topic to ros2 using the [ros_gz_image](https://github.com/gazebosim/ros_gz#integration-between-ros-and-gazebo) package.
+1. Bridge gazebo images to ros2
+```
+source ~/desktop_ros2_px4_ws/install/setup.bash
+ros2 run ros_gz_image image_bridge /camera
+```
+2. Launch gstreamer using rosimagesrc from the [ros-gst-bridge](https://github.com/BrettRD/ros-gst-bridge) package.
+```
+~/desktop_ros2_px4_ws/
+source install/setup.bash
+gst-launch-1.0 --gst-plugin-path=install/gst_bridge/lib/gst_bridge/ rosimagesrc ros-topic="/camera" ! queue max-size-buffers=1 ! videoconvert ! "video/x-raw,format=I420" ! x264enc bitrate=2000 tune=zerolatency speed-preset=ultrafast ! "video/x-h264,stream-format=byte-stream" ! rtph264pay config-interval=1 pt=96 ! udpsink host=127.0.0.1 port=5600 sync=false
+```
+You can view the video in QGC or display with a gstreamer client
+```
+gst-launch-1.0 udpsrc port=5600 ! application/x-rtp ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
+
+```
